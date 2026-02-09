@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image 1:1 Resizer</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --surface: #ffffff;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--surface);
+            position: relative;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: #eef2ff;
+        }
+
+        .upload-zone.dragover {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            background: #eef2ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon svg {
+            width: 28px;
+            height: 28px;
+            color: var(--primary);
+        }
+
+        .upload-zone h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .upload-zone p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Settings Bar */
+        .settings-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 20px 0;
+            padding: 16px 20px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            flex-wrap: wrap;
+        }
+
+        .settings-bar label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .settings-bar select,
+        .settings-bar input[type="number"] {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .settings-bar select:focus,
+        .settings-bar input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        .settings-bar input[type="number"] {
+            width: 80px;
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .color-picker-wrapper input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 2px;
+            background: var(--surface);
+        }
+
+        .settings-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Action Buttons */
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-outline {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: var(--bg);
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+
+        .result-card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .result-card .preview {
+            position: relative;
+            aspect-ratio: 1;
+            background: repeating-conic-gradient(#f1f5f9 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .result-card .preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .result-card .badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(79, 70, 229, 0.9);
+            color: #fff;
+        }
+
+        .result-card .badge.original {
+            background: rgba(100, 116, 139, 0.85);
+        }
+
+        .result-card .info {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .result-card .info .filename {
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .result-card .info .meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 12px;
+        }
+
+        .result-card .card-actions {
+            padding: 8px 14px 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .result-card .card-actions .btn {
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            flex: 1;
+        }
+
+        /* Comparison View */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .comparison .result-card {
+            margin: 0;
+        }
+
+        /* Counter */
+        .counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 16px 0 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .counter strong {
+            color: var(--text);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            background: #1e293b;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Progress */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 12px 0;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px 12px;
+            }
+
+            header h1 {
+                font-size: 1.35rem;
+            }
+
+            .settings-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .actions .btn {
+                justify-content: center;
+            }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image 1:1 Resizer</h1>
+            <p>Upload gambar, otomatis ditambahkan background agar rasio menjadi 1:1</p>
+        </header>
+
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+            </div>
+            <h3>Drag & drop gambar di sini</h3>
+            <p>atau klik untuk memilih file &mdash; mendukung banyak file sekaligus</p>
+            <p style="margin-top: 4px; font-size: 0.78rem; color: #94a3b8;">Format: JPG, PNG, WebP, BMP, GIF</p>
+            <input type="file" id="fileInput" multiple accept="image/*">
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-bar" id="progressBar">
+            <div class="fill" id="progressFill"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-bar">
+            <div class="settings-group">
+                <label for="bgColor">Background:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="bgColor" value="#ffffff">
+                    <span id="bgColorLabel" style="font-size: 0.8rem; color: var(--text-muted);">#ffffff</span>
+                </div>
+            </div>
+            <div class="settings-group">
+                <label for="outputFormat">Format:</label>
+                <select id="outputFormat">
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label for="quality">Quality:</label>
+                <input type="number" id="quality" min="10" max="100" value="92" step="1">
+                <span style="font-size: 0.78rem; color: var(--text-muted);">%</span>
+            </div>
+            <div class="settings-group">
+                <label for="maxSize">Max Size (px):</label>
+                <input type="number" id="maxSize" min="100" max="10000" value="1080" step="100">
+                <span style="font-size: 0.78rem; color: var(--text-muted);">px</span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-primary" id="processBtn" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                </svg>
+                Proses Semua
+            </button>
+            <button class="btn btn-success" id="downloadAllBtn" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download Semua (ZIP)
+            </button>
+            <button class="btn btn-outline" id="clearBtn" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                Hapus Semua
+            </button>
+        </div>
+
+        <!-- Counter -->
+        <div class="counter" id="counter" style="display: none;">
+            <strong id="countProcessed">0</strong> dari <strong id="countTotal">0</strong> gambar diproses
+        </div>
+
+        <!-- Results -->
+        <div id="results"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <footer>
+        Image 1:1 Resizer &mdash; 100% client-side, tidak ada data yang di-upload ke server.
+    </footer>
+
+    <script>
+        // State
+        const state = {
+            files: [],          // original File objects
+            originals: [],      // { name, width, height, dataUrl }
+            processed: [],      // { name, width, height, dataUrl, blob }
+        };
+
+        // DOM
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultsDiv = document.getElementById('results');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const counter = document.getElementById('counter');
+        const countProcessed = document.getElementById('countProcessed');
+        const countTotal = document.getElementById('countTotal');
+        const bgColorInput = document.getElementById('bgColor');
+        const bgColorLabel = document.getElementById('bgColorLabel');
+        const outputFormat = document.getElementById('outputFormat');
+        const qualityInput = document.getElementById('quality');
+        const maxSizeInput = document.getElementById('maxSize');
+        const toast = document.getElementById('toast');
+
+        // Color picker label sync
+        bgColorInput.addEventListener('input', () => {
+            bgColorLabel.textContent = bgColorInput.value;
+        });
+
+        // Drag & Drop
+        ['dragenter', 'dragover'].forEach(evt => {
+            uploadZone.addEventListener(evt, e => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            uploadZone.addEventListener(evt, e => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+        });
+
+        uploadZone.addEventListener('drop', e => {
+            const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+            if (files.length) handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', e => {
+            const files = [...e.target.files];
+            if (files.length) handleFiles(files);
+            fileInput.value = '';
+        });
+
+        // Handle incoming files
+        async function handleFiles(files) {
+            state.files = files;
+            state.originals = [];
+            state.processed = [];
+
+            processBtn.disabled = false;
+            clearBtn.disabled = false;
+            downloadAllBtn.disabled = true;
+
+            // Read all files
+            for (const file of files) {
+                const dataUrl = await readFileAsDataURL(file);
+                const { width, height } = await getImageDimensions(dataUrl);
+                state.originals.push({ name: file.name, width, height, dataUrl });
+            }
+
+            countTotal.textContent = state.originals.length;
+            countProcessed.textContent = '0';
+            counter.style.display = 'flex';
+
+            renderOriginals();
+            showToast(`${files.length} gambar siap diproses`);
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function getImageDimensions(src) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+                img.src = src;
+            });
+        }
+
+        // Render originals preview
+        function renderOriginals() {
+            const html = `
+                <div class="results-grid">
+                    ${state.originals.map((item, i) => `
+                        <div class="result-card">
+                            <div class="preview">
+                                <span class="badge original">${item.width} x ${item.height}</span>
+                                <img src="${item.dataUrl}" alt="${item.name}">
+                            </div>
+                            <div class="info">
+                                <div class="filename" title="${item.name}">${item.name}</div>
+                                <div class="meta">
+                                    <span>Rasio: ${getRatioLabel(item.width, item.height)}</span>
+                                    <span>${item.width === item.height ? '1:1 ✓' : 'Perlu resize'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            resultsDiv.innerHTML = html;
+        }
+
+        function getRatioLabel(w, h) {
+            const g = gcd(w, h);
+            return `${w / g}:${h / g}`;
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        // Process all images
+        processBtn.addEventListener('click', async () => {
+            processBtn.disabled = true;
+            processBtn.innerHTML = '<span class="spinner"></span> Memproses...';
+            progressBar.classList.add('active');
+            state.processed = [];
+
+            const bgColor = bgColorInput.value;
+            const format = outputFormat.value;
+            const quality = parseInt(qualityInput.value) / 100;
+            const maxSize = parseInt(maxSizeInput.value) || 0;
+
+            for (let i = 0; i < state.originals.length; i++) {
+                const orig = state.originals[i];
+                const result = await processImage(orig, bgColor, format, quality, maxSize);
+                state.processed.push(result);
+
+                // Update progress
+                const pct = ((i + 1) / state.originals.length) * 100;
+                progressFill.style.width = pct + '%';
+                countProcessed.textContent = i + 1;
+            }
+
+            processBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                </svg>
+                Proses Ulang
+            `;
+            processBtn.disabled = false;
+            downloadAllBtn.disabled = false;
+
+            setTimeout(() => {
+                progressBar.classList.remove('active');
+                progressFill.style.width = '0%';
+            }, 800);
+
+            renderResults();
+            showToast(`${state.processed.length} gambar berhasil diproses!`);
+        });
+
+        // Core processing function
+        function processImage(orig, bgColor, format, quality, maxSize) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.naturalWidth;
+                    let h = img.naturalHeight;
+
+                    // Determine the square size
+                    let squareSize = Math.max(w, h);
+
+                    // Apply max size limit if set
+                    if (maxSize > 0 && squareSize > maxSize) {
+                        const scale = maxSize / squareSize;
+                        w = Math.round(w * scale);
+                        h = Math.round(h * scale);
+                        squareSize = maxSize;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = squareSize;
+                    canvas.height = squareSize;
+                    const ctx = canvas.getContext('2d');
+
+                    // Fill background
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, squareSize, squareSize);
+
+                    // Center the image
+                    const x = Math.round((squareSize - w) / 2);
+                    const y = Math.round((squareSize - h) / 2);
+                    ctx.drawImage(img, x, y, w, h);
+
+                    // Get mime type
+                    const mimeMap = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
+                    const mime = mimeMap[format] || 'image/png';
+
+                    canvas.toBlob((blob) => {
+                        const dataUrl = canvas.toDataURL(mime, quality);
+                        const ext = format === 'jpeg' ? 'jpg' : format;
+                        const baseName = orig.name.replace(/\.[^.]+$/, '');
+
+                        resolve({
+                            name: `${baseName}_1x1.${ext}`,
+                            width: squareSize,
+                            height: squareSize,
+                            dataUrl,
+                            blob,
+                            originalName: orig.name,
+                            originalWidth: img.naturalWidth,
+                            originalHeight: img.naturalHeight,
+                        });
+                    }, mime, quality);
+                };
+                img.src = orig.dataUrl;
+            });
+        }
+
+        // Render comparison results
+        function renderResults() {
+            let html = '';
+            for (let i = 0; i < state.originals.length; i++) {
+                const orig = state.originals[i];
+                const proc = state.processed[i];
+                if (!proc) continue;
+
+                html += `
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted);">
+                            ${i + 1}. ${orig.name}
+                        </div>
+                        <div class="comparison">
+                            <div class="result-card">
+                                <div class="preview">
+                                    <span class="badge original">Original ${orig.width}x${orig.height}</span>
+                                    <img src="${orig.dataUrl}" alt="Original">
+                                </div>
+                                <div class="info">
+                                    <div class="filename">Original</div>
+                                    <div class="meta">
+                                        <span>${orig.width} x ${orig.height}</span>
+                                        <span>Rasio: ${getRatioLabel(orig.width, orig.height)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="result-card">
+                                <div class="preview">
+                                    <span class="badge">${proc.width}x${proc.height} (1:1)</span>
+                                    <img src="${proc.dataUrl}" alt="Processed">
+                                </div>
+                                <div class="info">
+                                    <div class="filename">${proc.name}</div>
+                                    <div class="meta">
+                                        <span>${proc.width} x ${proc.height}</span>
+                                        <span>${formatBytes(proc.blob.size)}</span>
+                                    </div>
+                                </div>
+                                <div class="card-actions">
+                                    <button class="btn btn-primary" onclick="downloadSingle(${i})">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                        Download
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // Download single
+        function downloadSingle(index) {
+            const item = state.processed[index];
+            if (!item) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(item.blob);
+            a.download = item.name;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // Download all as ZIP (using JSZip from CDN)
+        downloadAllBtn.addEventListener('click', async () => {
+            if (state.processed.length === 0) return;
+
+            // If only one file, just download it directly
+            if (state.processed.length === 1) {
+                downloadSingle(0);
+                return;
+            }
+
+            downloadAllBtn.disabled = true;
+            downloadAllBtn.innerHTML = '<span class="spinner"></span> Membuat ZIP...';
+
+            try {
+                // Dynamically load JSZip if not loaded
+                if (typeof JSZip === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+                }
+
+                const zip = new JSZip();
+                for (const item of state.processed) {
+                    zip.file(item.name, item.blob);
+                }
+
+                const content = await zip.generateAsync({ type: 'blob' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = 'images_1x1.zip';
+                a.click();
+                URL.revokeObjectURL(a.href);
+
+                showToast('ZIP berhasil didownload!');
+            } catch (err) {
+                showToast('Gagal membuat ZIP: ' + err.message);
+                console.error(err);
+            }
+
+            downloadAllBtn.disabled = false;
+            downloadAllBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download Semua (ZIP)
+            `;
+        });
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        // Clear all
+        clearBtn.addEventListener('click', () => {
+            state.files = [];
+            state.originals = [];
+            state.processed = [];
+            resultsDiv.innerHTML = '';
+            processBtn.disabled = true;
+            clearBtn.disabled = true;
+            downloadAllBtn.disabled = true;
+            counter.style.display = 'none';
+            showToast('Semua data dihapus');
+        });
+
+        // Toast
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
