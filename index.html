@@ -237,10 +237,23 @@
             color: #fff;
             font-size: 0.72rem;
             font-weight: 700;
-            text-align: center;
             line-height: 1.35;
             border-radius: 6px;
             text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .banner-preview-strip .banner-preview-text {
+            flex: 1;
+            text-align: center;
+        }
+
+        .banner-warn-icon {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
         }
 
         .banner-hint {
@@ -671,6 +684,14 @@
         const BANNER_TEXT_KEY = 'img-resizer-banner-text';
         const BANNER_ENABLED_KEY = 'img-resizer-banner-enabled';
         const DEFAULT_BANNER_TEXT = 'JANGAN MEMBAYAR DENGAN ALASAN DEPOSIT, BIAYA SERAGAM, ADMIN, DLL UNTUK MELAMAR PEKERJAAN';
+        const BANNER_WARNING_SVG = `<svg class="banner-warn-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#FFEB3B" stroke="#212121" stroke-width="1.1" d="M12 2.5L1.5 21h21L12 2.5z"/><rect fill="#212121" x="11" y="9" width="2" height="6" rx="0.5"/><circle fill="#212121" cx="12" cy="18" r="1.2"/></svg>`;
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
 
         function loadBannerSettings() {
             const savedText = localStorage.getItem(BANNER_TEXT_KEY);
@@ -690,8 +711,9 @@
         function syncBannerUi() {
             const on = bannerEnabledInput.checked;
             bannerTextInput.disabled = !on;
-            bannerPreview.style.display = on ? 'block' : 'none';
-            bannerPreview.textContent = bannerTextInput.value.trim() || DEFAULT_BANNER_TEXT;
+            bannerPreview.style.display = on ? 'flex' : 'none';
+            const previewText = escapeHtml(bannerTextInput.value.trim() || DEFAULT_BANNER_TEXT);
+            bannerPreview.innerHTML = `${BANNER_WARNING_SVG}<span class="banner-preview-text">${previewText}</span>${BANNER_WARNING_SVG}`;
         }
 
         loadBannerSettings();
@@ -873,9 +895,40 @@
             return lines;
         }
 
+        function drawWarningIcon(ctx, cx, cy, size) {
+            const h = size;
+            const w = size * 1.12;
+            const top = cy - h / 2;
+            const left = cx - w / 2;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(cx, top);
+            ctx.lineTo(left + w, top + h);
+            ctx.lineTo(left, top + h);
+            ctx.closePath();
+            ctx.fillStyle = '#ffeb3b';
+            ctx.fill();
+            ctx.strokeStyle = '#212121';
+            ctx.lineWidth = Math.max(1.2, size * 0.05);
+            ctx.stroke();
+
+            const barW = Math.max(1.5, size * 0.11);
+            const barH = size * 0.34;
+            ctx.fillStyle = '#212121';
+            ctx.fillRect(cx - barW / 2, top + h * 0.34, barW, barH);
+            ctx.beginPath();
+            ctx.arc(cx, top + h * 0.8, barW * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         function computeBannerLayout(ctx, text, canvasSize) {
-            const padX = Math.max(8, canvasSize * 0.03);
-            const maxTextWidth = canvasSize - padX * 2;
+            const padX = Math.max(8, canvasSize * 0.025);
+            const iconSizeTarget = Math.max(18, canvasSize * 0.065);
+            const iconGap = Math.max(4, canvasSize * 0.012);
+            const iconSlotWidth = padX + iconSizeTarget + iconGap;
+            const maxTextWidth = canvasSize - iconSlotWidth * 2;
             const maxBandRatio = 0.24;
             const lineHeight = 1.28;
             let fontSize = Math.max(11, Math.round(canvasSize * 0.032));
@@ -893,15 +946,22 @@
                 fontSize -= 1;
             }
 
-            return { fontSize, lines, bandHeight, padX, lineHeight };
+            return { fontSize, lines, bandHeight, padX, lineHeight, iconSizeTarget };
         }
 
         function drawBannerStrip(ctx, layout, canvasSize) {
-            const { fontSize, lines, bandHeight, lineHeight } = layout;
+            const { fontSize, lines, bandHeight, lineHeight, padX, iconSizeTarget } = layout;
             const y = 0;
+            const iconSize = Math.min(bandHeight * 0.62, iconSizeTarget);
+            const iconY = y + bandHeight / 2;
+            const leftIconX = padX + iconSize / 2;
+            const rightIconX = canvasSize - padX - iconSize / 2;
 
             ctx.fillStyle = '#c62828';
             ctx.fillRect(0, y, canvasSize, bandHeight);
+
+            drawWarningIcon(ctx, leftIconX, iconY, iconSize);
+            drawWarningIcon(ctx, rightIconX, iconY, iconSize);
 
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
