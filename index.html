@@ -593,11 +593,11 @@
         <div class="banner-settings">
             <div class="banner-settings-header">
                 <input type="checkbox" id="bannerEnabled" checked>
-                <label for="bannerEnabled">Banner peringatan (atas &amp; bawah)</label>
+                <label for="bannerEnabled">Banner peringatan (atas)</label>
             </div>
             <textarea id="bannerText" rows="3" spellcheck="false"></textarea>
             <div class="banner-preview-strip" id="bannerPreview" aria-hidden="true"></div>
-            <p class="banner-hint">Teks putih pada latar merah di bagian atas dan bawah. Output tetap 1:1. Teks disimpan otomatis di peramban.</p>
+            <p class="banner-hint">Teks putih pada latar merah di bagian atas. Output tetap 1:1. Teks disimpan otomatis di peramban.</p>
         </div>
 
         <!-- Actions -->
@@ -896,9 +896,9 @@
             return { fontSize, lines, bandHeight, padX, lineHeight };
         }
 
-        function drawBannerStrip(ctx, layout, canvasSize, position) {
+        function drawBannerStrip(ctx, layout, canvasSize) {
             const { fontSize, lines, bandHeight, lineHeight } = layout;
-            const y = position === 'top' ? 0 : canvasSize - bandHeight;
+            const y = 0;
 
             ctx.fillStyle = '#c62828';
             ctx.fillRect(0, y, canvasSize, bandHeight);
@@ -952,8 +952,7 @@
                     if (bannerEnabled && bannerText) {
                         const layout = computeBannerLayout(ctx, bannerText, squareSize);
                         if (layout.lines.length) {
-                            drawBannerStrip(ctx, layout, squareSize, 'top');
-                            drawBannerStrip(ctx, layout, squareSize, 'bottom');
+                            drawBannerStrip(ctx, layout, squareSize);
                         }
                     }
 
