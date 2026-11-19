@@ -176,6 +176,79 @@
             gap: 8px;
         }
 
+        .banner-settings {
+            margin: 0 0 20px;
+            padding: 16px 20px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .banner-settings-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .banner-settings-header label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .banner-settings-header input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .banner-settings textarea {
+            width: 100%;
+            min-height: 72px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            line-height: 1.45;
+            resize: vertical;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .banner-settings textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .banner-settings textarea:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .banner-preview-strip {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: #c62828;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.35;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .banner-hint {
+            margin-top: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         /* Action Buttons */
         .actions {
             display: flex;
@@ -517,6 +590,16 @@
             </div>
         </div>
 
+        <div class="banner-settings">
+            <div class="banner-settings-header">
+                <input type="checkbox" id="bannerEnabled" checked>
+                <label for="bannerEnabled">Banner peringatan (atas &amp; bawah)</label>
+            </div>
+            <textarea id="bannerText" rows="3" spellcheck="false"></textarea>
+            <div class="banner-preview-strip" id="bannerPreview" aria-hidden="true"></div>
+            <p class="banner-hint">Teks putih pada latar merah di bagian atas dan bawah. Output tetap 1:1. Teks disimpan otomatis di peramban.</p>
+        </div>
+
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-primary" id="processBtn" disabled>
@@ -581,6 +664,47 @@
         const qualityInput = document.getElementById('quality');
         const maxSizeInput = document.getElementById('maxSize');
         const toast = document.getElementById('toast');
+        const bannerEnabledInput = document.getElementById('bannerEnabled');
+        const bannerTextInput = document.getElementById('bannerText');
+        const bannerPreview = document.getElementById('bannerPreview');
+
+        const BANNER_TEXT_KEY = 'img-resizer-banner-text';
+        const BANNER_ENABLED_KEY = 'img-resizer-banner-enabled';
+        const DEFAULT_BANNER_TEXT = 'JANGAN MEMBAYAR DENGAN ALASAN DEPOSIT, BIAYA SERAGAM, ADMIN, DLL UNTUK MELAMAR PEKERJAAN';
+
+        function loadBannerSettings() {
+            const savedText = localStorage.getItem(BANNER_TEXT_KEY);
+            const savedEnabled = localStorage.getItem(BANNER_ENABLED_KEY);
+            bannerTextInput.value = savedText !== null ? savedText : DEFAULT_BANNER_TEXT;
+            if (savedEnabled !== null) {
+                bannerEnabledInput.checked = savedEnabled === '1';
+            }
+            syncBannerUi();
+        }
+
+        function saveBannerSettings() {
+            localStorage.setItem(BANNER_TEXT_KEY, bannerTextInput.value);
+            localStorage.setItem(BANNER_ENABLED_KEY, bannerEnabledInput.checked ? '1' : '0');
+        }
+
+        function syncBannerUi() {
+            const on = bannerEnabledInput.checked;
+            bannerTextInput.disabled = !on;
+            bannerPreview.style.display = on ? 'block' : 'none';
+            bannerPreview.textContent = bannerTextInput.value.trim() || DEFAULT_BANNER_TEXT;
+        }
+
+        loadBannerSettings();
+
+        bannerEnabledInput.addEventListener('change', () => {
+            syncBannerUi();
+            saveBannerSettings();
+        });
+
+        bannerTextInput.addEventListener('input', () => {
+            syncBannerUi();
+            saveBannerSettings();
+        });
 
         // Color picker label sync
         bgColorInput.addEventListener('input', () => {
@@ -699,10 +823,12 @@
             const format = outputFormat.value;
             const quality = parseInt(qualityInput.value) / 100;
             const maxSize = parseInt(maxSizeInput.value) || 0;
+            const bannerEnabled = bannerEnabledInput.checked;
+            const bannerText = (bannerTextInput.value.trim() || DEFAULT_BANNER_TEXT);
 
             for (let i = 0; i < state.originals.length; i++) {
                 const orig = state.originals[i];
-                const result = await processImage(orig, bgColor, format, quality, maxSize);
+                const result = await processImage(orig, bgColor, format, quality, maxSize, bannerEnabled, bannerText);
                 state.processed.push(result);
 
                 // Update progress
@@ -729,8 +855,69 @@
             showToast(`${state.processed.length} gambar berhasil diproses!`);
         });
 
+        function wrapBannerLines(ctx, text, maxWidth) {
+            const words = text.trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return [];
+            const lines = [];
+            let line = '';
+            for (const word of words) {
+                const test = line ? `${line} ${word}` : word;
+                if (ctx.measureText(test).width > maxWidth && line) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = test;
+                }
+            }
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        function computeBannerLayout(ctx, text, canvasSize) {
+            const padX = Math.max(8, canvasSize * 0.03);
+            const maxTextWidth = canvasSize - padX * 2;
+            const maxBandRatio = 0.24;
+            const lineHeight = 1.28;
+            let fontSize = Math.max(11, Math.round(canvasSize * 0.032));
+            let lines = [];
+            let bandHeight = 0;
+
+            while (fontSize >= 9) {
+                ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+                lines = wrapBannerLines(ctx, text, maxTextWidth);
+                const textHeight = lines.length * fontSize * lineHeight;
+                bandHeight = Math.ceil(textHeight + fontSize * 0.85);
+                if (!lines.length || bandHeight <= canvasSize * maxBandRatio) {
+                    break;
+                }
+                fontSize -= 1;
+            }
+
+            return { fontSize, lines, bandHeight, padX, lineHeight };
+        }
+
+        function drawBannerStrip(ctx, layout, canvasSize, position) {
+            const { fontSize, lines, bandHeight, lineHeight } = layout;
+            const y = position === 'top' ? 0 : canvasSize - bandHeight;
+
+            ctx.fillStyle = '#c62828';
+            ctx.fillRect(0, y, canvasSize, bandHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+
+            const blockHeight = lines.length * fontSize * lineHeight;
+            const startY = y + bandHeight / 2 - blockHeight / 2 + (fontSize * lineHeight) / 2;
+
+            lines.forEach((line, i) => {
+                ctx.fillText(line, canvasSize / 2, startY + i * fontSize * lineHeight);
+            });
+        }
+
         // Core processing function
-        function processImage(orig, bgColor, format, quality, maxSize) {
+        function processImage(orig, bgColor, format, quality, maxSize, bannerEnabled, bannerText) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
@@ -761,6 +948,14 @@
                     const x = Math.round((squareSize - w) / 2);
                     const y = Math.round((squareSize - h) / 2);
                     ctx.drawImage(img, x, y, w, h);
+
+                    if (bannerEnabled && bannerText) {
+                        const layout = computeBannerLayout(ctx, bannerText, squareSize);
+                        if (layout.lines.length) {
+                            drawBannerStrip(ctx, layout, squareSize, 'top');
+                            drawBannerStrip(ctx, layout, squareSize, 'bottom');
+                        }
+                    }
 
                     // Get mime type
                     const mimeMap = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
