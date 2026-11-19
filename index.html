@@ -610,7 +610,7 @@
             </div>
             <textarea id="bannerText" rows="3" spellcheck="false"></textarea>
             <div class="banner-preview-strip" id="bannerPreview" aria-hidden="true"></div>
-            <p class="banner-hint">Teks putih pada latar merah di bagian atas. Output tetap 1:1. Teks disimpan otomatis di peramban.</p>
+            <p class="banner-hint">Banner di strip atas; gambar digeser ke bawah (tidak tertutup). Output tetap 1:1. Teks disimpan otomatis di peramban.</p>
         </div>
 
         <!-- Actions -->
@@ -995,25 +995,36 @@
                         squareSize = maxSize;
                     }
 
+                    let bandHeight = 0;
+                    let bannerLayout = null;
+                    if (bannerEnabled && bannerText) {
+                        const measureCtx = document.createElement('canvas').getContext('2d');
+                        bannerLayout = computeBannerLayout(measureCtx, bannerText, squareSize);
+                        if (bannerLayout.lines.length) {
+                            bandHeight = bannerLayout.bandHeight;
+                        }
+                    }
+
                     const canvas = document.createElement('canvas');
                     canvas.width = squareSize;
                     canvas.height = squareSize;
                     const ctx = canvas.getContext('2d');
 
-                    // Fill background
                     ctx.fillStyle = bgColor;
                     ctx.fillRect(0, 0, squareSize, squareSize);
 
-                    // Center the image
-                    const x = Math.round((squareSize - w) / 2);
-                    const y = Math.round((squareSize - h) / 2);
-                    ctx.drawImage(img, x, y, w, h);
+                    if (bandHeight > 0) {
+                        drawBannerStrip(ctx, bannerLayout, squareSize);
+                    }
 
-                    if (bannerEnabled && bannerText) {
-                        const layout = computeBannerLayout(ctx, bannerText, squareSize);
-                        if (layout.lines.length) {
-                            drawBannerStrip(ctx, layout, squareSize);
-                        }
+                    const regionH = squareSize - bandHeight;
+                    if (regionH > 0) {
+                        const fitScale = Math.min(squareSize / w, regionH / h);
+                        const dw = Math.round(w * fitScale);
+                        const dh = Math.round(h * fitScale);
+                        const x = Math.round((squareSize - dw) / 2);
+                        const y = Math.round(bandHeight + (regionH - dh) / 2);
+                        ctx.drawImage(img, x, y, dw, dh);
                     }
 
                     // Get mime type
